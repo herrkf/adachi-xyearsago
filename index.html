@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="今日の日付の足立レイのポスト一覧を年別に表示します。" />
+  <meta name="description" content="今日の日付の足立レイのポスト一覧を、年別にXで表示します。">
+  <meta name="keywords" content="足立レイ, X, Twitter, ポスト, 過去, 名言, 語録">
+
   <title>◯年前の足立レイ語録 (´☋｀)</title>
 
   <!-- Bootstrap -->
@@ -14,27 +16,50 @@
       background-color: #f0f0f0;
       cursor: pointer;
     }
+    .list-group-item:active {
+      background-color: #e0e0e0;
+    }
+    .example-text {
+      font-size: 0.95rem;
+      color: #6c757d;
+      margin-top: 4px;
+    }
   </style>
 </head>
+
 <body class="bg-light">
 
 <div class="container py-4">
-  <h1 class="fs-3">◯年前の足立レイ語録 (´☋｀)</h1>
-  <p class="text-muted">
-    今日の日付の<a href="https://x.com/adachirei0" target="_blank" rel="noopener noreferrer">足立レイ</a>のポスト一覧を年別にXで表示します。
-  </p>
 
-  <h2 id="dateTitle" class="mb-3 fs-3">📅</h2>
+  <div class="card-body">
 
-  <ul id="quoteList" class="list-group mb-4"></ul>
+    <h1 class="fs-3">◯年前の足立レイ語録 (´☋｀)</h1>
 
-  <button id="shareButton" class="btn btn-primary btn-lg">
-    シェア（タイトルとURLをコピー）
-  </button>
+    <p class="text-muted mb-3">
+      今日の日付の<a href="https://x.com/adachirei0" target="_blank" rel="noopener noreferrer">足立レイ</a>
+      のポスト一覧を、年別にXで表示します。
+    </p>
 
-  <p class="text-center text-muted mt-4">
+    <h2 id="dateTitle" class="card-title mb-3 fs-3"></h2>
+
+    <ul id="quoteList" class="list-group mb-4"></ul>
+
+    <p id="fanartTitle" class="mt-5 mb-3 card-title"></p>
+
+    <ul id="fanartList" class="list-group"></ul>
+
+  </div>
+
+  <div class="text-center my-5">
+    <button id="shareButton" type="button" class="btn btn-primary btn-lg">
+      シェア（タイトルとURLをコピー）
+    </button>
+  </div>
+
+  <p class="text-center text-muted mt-3">
     制作：<a href="https://herrkf.com/">Entac</a>
   </p>
+
 </div>
 
 <script src="script.js"></script>
