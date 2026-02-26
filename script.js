@@ -38,7 +38,9 @@ function formatDateParts(date) {
 function buildXSearchURL(year, monthStr, dayStr) {
   const since = `${year}-${monthStr}-${dayStr}_00:00:00_JST`;
   const until = `${year}-${monthStr}-${dayStr}_23:59:59_JST`;
-  const query = encodeURIComponent(`from:${twitterUser} since:${since} until:${until}`);
+  const query = encodeURIComponent(
+    `from:${twitterUser} since:${since} until:${until}`
+  );
   return `https://x.com/search?q=${query}&src=typed_query&f=live`;
 }
 
@@ -46,10 +48,13 @@ function buildFanartURL(year, month, day) {
   const baseDate = new Date(year, month - 1, day);
   baseDate.setDate(baseDate.getDate() - 6);
 
-  const since = `${baseDate.getFullYear()}-${String(baseDate.getMonth()+1).padStart(2,"0")}-${String(baseDate.getDate()).padStart(2,"0")}_00:00:00_JST`;
-  const until = `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}_23:59:59_JST`;
+  const since = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, "0")}-${String(baseDate.getDate()).padStart(2, "0")}_00:00:00_JST`;
+  const until = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}_23:59:59_JST`;
 
-  const query = encodeURIComponent(`url:twitter.com/${twitterUser} filter:media since:${since} until:${until}`);
+  const query = encodeURIComponent(
+    `url:twitter.com/${twitterUser} filter:media since:${since} until:${until}`
+  );
+
   return `https://x.com/search?q=${query}`;
 }
 
@@ -59,21 +64,10 @@ function diffLabel(currentYear, year) {
 }
 
 async function loadQuotes() {
-  try {
-    const response = await fetch("adachi-db.json");
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log("JSON loaded:", data);
-    return data;
-
-  } catch (err) {
-    console.error("JSON読み込み失敗:", err);
-    return {};
-  }
+  const response = await fetch("adachi-db.json");
+  const data = await response.json();
+  console.log("JSON loaded:", data);
+  return data;
 }
 
 function render(dateParts, quotes) {
@@ -91,15 +85,23 @@ function render(dateParts, quotes) {
   quoteList.innerHTML = "";
   fanartList.innerHTML = "";
 
+  // ✅ 日付一致データを一度だけ検索（高速化）
+  const row = quotes.find(r =>
+    Number(r.month) === Number(month) &&
+    Number(r.day) === Number(day)
+  );
+
+  console.log("Matched row:", row);
+
   for (let year = currentYear; year >= startYear; year--) {
 
     const label = diffLabel(currentYear, year);
-    const exampleText = quotes?.[month]?.[day]?.[year];
+    const exampleText = row?.[year] ?? "";
 
     const quoteURL = buildXSearchURL(year, monthStr, dayStr);
     const fanartURL = buildFanartURL(year, month, day);
 
-    // 語録
+    // ===== 語録 =====
     const li = document.createElement("li");
     li.className = "list-group-item position-relative py-3";
 
@@ -121,7 +123,7 @@ function render(dateParts, quotes) {
 
     quoteList.appendChild(li);
 
-    // ファンアート
+    // ===== ファンアート =====
     const fanartLi = document.createElement("li");
     fanartLi.className = "list-group-item position-relative py-3";
 
@@ -141,6 +143,7 @@ function setupShareButton() {
   const button = document.getElementById("shareButton");
 
   button.addEventListener("click", () => {
+
     const textToCopy =
 `◯年前の足立レイ語録 (´☋｀)
 ${location.href}`;
@@ -169,9 +172,9 @@ ${location.href}`;
   let baseDate;
 
   if (testParam && /^\d{8}$/.test(testParam)) {
-    const y = parseInt(testParam.slice(0,4));
-    const m = parseInt(testParam.slice(4,6)) - 1;
-    const d = parseInt(testParam.slice(6,8));
+    const y = parseInt(testParam.slice(0, 4));
+    const m = parseInt(testParam.slice(4, 6)) - 1;
+    const d = parseInt(testParam.slice(6, 8));
     baseDate = new Date(y, m, d);
   } else {
     baseDate = getToday(dateParam);
