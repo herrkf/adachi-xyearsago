@@ -1,34 +1,38 @@
 const startYear = 2020;
 const twitterUser = "adachirei0";
 
-function getDateFromParam() {
-  const params = new URLSearchParams(window.location.search);
-  const param = params.get("wahlensiedasdatum");
+function getToday(param) {
+  const now = new Date();
 
-  let date = new Date();
+  if (!param) return now;
 
   if (param === "gestern") {
-    date.setDate(date.getDate() - 1);
-
-  } else if (param === "morgen") {
-    date.setDate(date.getDate() + 1);
-
-  } else if (/^\d{4}$/.test(param)) {
-    const month = parseInt(param.substring(0, 2), 10);
-    const day = parseInt(param.substring(2, 4), 10);
-
-    const testDate = new Date(date.getFullYear(), month - 1, day);
-
-    if (!isNaN(testDate)) {
-      date = testDate;
-    }
+    now.setDate(now.getDate() - 1);
+    return now;
   }
 
-  return date;
+  if (param === "morgen") {
+    now.setDate(now.getDate() + 1);
+    return now;
+  }
+
+  if (/^\d{4}$/.test(param)) {
+    const month = parseInt(param.slice(0, 2), 10) - 1;
+    const day = parseInt(param.slice(2, 4), 10);
+    return new Date(now.getFullYear(), month, day);
+  }
+
+  return now;
 }
 
-function format2(num) {
-  return num.toString().padStart(2, "0");
+function formatDateParts(date) {
+  return {
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+    monthStr: String(date.getMonth() + 1).padStart(2, "0"),
+    dayStr: String(date.getDate()).padStart(2, "0")
+  };
 }
 
 function buildXSearchURL(year, monthStr, dayStr) {
@@ -38,53 +42,85 @@ function buildXSearchURL(year, monthStr, dayStr) {
   return `https://x.com/search?q=${query}&src=typed_query&f=live`;
 }
 
+function buildFanartURL(year, month, day) {
+  const baseDate = new Date(year, month - 1, day);
+  baseDate.setDate(baseDate.getDate() - 6);
+
+  const since = `${baseDate.getFullYear()}-${String(baseDate.getMonth()+1).padStart(2,"0")}-${String(baseDate.getDate()).padStart(2,"0")}_00:00:00_JST`;
+  const until = `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}_23:59:59_JST`;
+
+  const query = encodeURIComponent(`url:twitter.com/${twitterUser} filter:media since:${since} until:${until}`);
+  return `https://x.com/search?q=${query}`;
+}
+
+function diffLabel(currentYear, year) {
+  const diff = currentYear - year;
+  return diff === 0 ? "今年" : `${diff}年前`;
+}
+
 async function loadQuotes() {
   const response = await fetch("adachi-db.json");
   return response.json();
 }
 
-function render(quotesDB, date) {
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const currentYear = date.getFullYear();
-
-  const monthStr = format2(month);
-  const dayStr = format2(day);
+function render(dateParts, quotes) {
+  const { year: currentYear, month, day, monthStr, dayStr } = dateParts;
 
   document.getElementById("dateTitle").textContent =
-    `📅 ${month}月${day}日`;
+    `📅${month}月${day}日`;
 
-  const list = document.getElementById("quoteList");
-  list.innerHTML = "";
+  document.getElementById("fanartTitle").textContent =
+    `${month}月${day}日から直近7日の語録ファンアート`;
 
-  const entry = quotesDB.find(q => q.month === month && q.day === day);
+  const quoteList = document.getElementById("quoteList");
+  const fanartList = document.getElementById("fanartList");
+
+  quoteList.innerHTML = "";
+  fanartList.innerHTML = "";
 
   for (let year = currentYear; year >= startYear; year--) {
-    const diff = currentYear - year;
-    const label = diff === 0 ? "今年" : `${diff}年前`;
 
-    const text = entry?.[year] ?? "";
+    const label = diffLabel(currentYear, year);
+    const exampleText = quotes?.[month]?.[day]?.[year];
 
+    const quoteURL = buildXSearchURL(year, monthStr, dayStr);
+    const fanartURL = buildFanartURL(year, month, day);
+
+    // 語録
     const li = document.createElement("li");
-    li.className = "list-group-item py-3";
+    li.className = "list-group-item position-relative py-3";
 
     const a = document.createElement("a");
-    a.href = buildXSearchURL(year, monthStr, dayStr);
+    a.href = quoteURL;
     a.target = "_blank";
     a.rel = "noopener noreferrer";
-    a.className = "text-decoration-none fs-5";
-    a.textContent = `⚙️ ${year}年（${label}） →`;
+    a.className = "stretched-link text-decoration-none fs-5";
+    a.innerHTML = `⚙️ ${year}年（${label}） →`;
 
     li.appendChild(a);
 
-    if (text.trim() !== "") {
+    if (exampleText) {
       const ex = document.createElement("div");
-      ex.className = "small text-muted mt-1";
-      ex.textContent = `ex: ${text}`;
+      ex.className = "example-text";
+      ex.textContent = `ex: ${exampleText}`;
       li.appendChild(ex);
     }
 
-    list.appendChild(li);
+    quoteList.appendChild(li);
+
+    // ファンアート
+    const fanartLi = document.createElement("li");
+    fanartLi.className = "list-group-item position-relative py-3";
+
+    const fanartA = document.createElement("a");
+    fanartA.href = fanartURL;
+    fanartA.target = "_blank";
+    fanartA.rel = "noopener noreferrer";
+    fanartA.className = "stretched-link text-decoration-none fs-5";
+    fanartA.innerHTML = `🖼️ ${year}年（${label}） →`;
+
+    fanartLi.appendChild(fanartA);
+    fanartList.appendChild(fanartLi);
   }
 }
 
@@ -94,25 +130,43 @@ function setupShareButton() {
   button.addEventListener("click", () => {
     const textToCopy =
 `◯年前の足立レイ語録 (´☋｀)
-${window.location.href}`;
+${location.href}`;
+
+    const originalText = button.textContent;
+    const originalClass = button.className;
 
     navigator.clipboard.writeText(textToCopy).then(() => {
-      const original = button.textContent;
       button.textContent = "コピーしました！";
       button.className = "btn btn-success btn-lg";
 
       setTimeout(() => {
-        button.textContent = original;
-        button.className = "btn btn-primary btn-lg";
+        button.textContent = originalText;
+        button.className = originalClass;
       }, 1200);
     });
   });
 }
 
 (async function init() {
-  const date = getDateFromParam();
-  const quotesDB = await loadQuotes();
+  const urlParams = new URLSearchParams(location.search);
 
-  render(quotesDB, date);
+  const testParam = urlParams.get("testwahlensiedasdatum");
+  const dateParam = urlParams.get("wahlensiedasdatum");
+
+  let baseDate;
+
+  if (testParam && /^\d{8}$/.test(testParam)) {
+    const y = parseInt(testParam.slice(0,4));
+    const m = parseInt(testParam.slice(4,6)) - 1;
+    const d = parseInt(testParam.slice(6,8));
+    baseDate = new Date(y, m, d);
+  } else {
+    baseDate = getToday(dateParam);
+  }
+
+  const dateParts = formatDateParts(baseDate);
+  const quotes = await loadQuotes();
+
+  render(dateParts, quotes);
   setupShareButton();
 })();
