@@ -59,8 +59,21 @@ function diffLabel(currentYear, year) {
 }
 
 async function loadQuotes() {
-  const response = await fetch("adachi-db.json");
-  return response.json();
+  try {
+    const response = await fetch("adachi-db.json");
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("JSON loaded:", data);
+    return data;
+
+  } catch (err) {
+    console.error("JSON読み込み失敗:", err);
+    return {};
+  }
 }
 
 function render(dateParts, quotes) {
