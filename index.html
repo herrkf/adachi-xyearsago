@@ -19,6 +19,19 @@
     .list-group-item:active {
       background-color: #e0e0e0;
     }
+    /* X埋め込みのレスポンシブ＆センタリング用CSS */
+    .tweet-card-wrapper {
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px 12px 0 12px;
+      border: 1px solid #e1e8ed;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+      width: 100%;
+    }
+    .tweet-card-wrapper iframe {
+      margin: 0 auto !important;
+      max-width: 100% !important;
+    }
   </style>
 </head>
 
@@ -42,6 +55,11 @@
 
     <ul id="fanartList" class="list-group"></ul>
 
+    <div class="mt-5">
+      <p id="pickupTitle" class="mt-5 mb-3 card-title"></p>
+      <div id="pickupList" class="d-flex flex-column align-items-center gap-4"></div>
+    </div>
+
   </div>
 
   <div class="text-center my-5">
@@ -56,6 +74,8 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 <script src="script.js"></script>
 </body>
 </html>
