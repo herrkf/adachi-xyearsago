@@ -1,56 +1,88 @@
 const startYear = 2020;
 const twitterUser = "adachirei0";
+const dbPath = ".data/adachi-db.json";
+const jstOffsetMs = 9 * 60 * 60 * 1000;
 
-function getToday(param) {
-  const now = new Date();
-
-  if (!param) return now;
-
-  if (param === "gestern") {
-    now.setDate(now.getDate() - 1);
-    return now;
-  }
-
-  if (param === "morgen") {
-    now.setDate(now.getDate() + 1);
-    return now;
-  }
-
-  if (/^\d{4}$/.test(param)) {
-    const month = parseInt(param.slice(0, 2), 10) - 1;
-    const day = parseInt(param.slice(2, 4), 10);
-    return new Date(now.getFullYear(), month, day);
-  }
-
-  return now;
-}
-
-function formatDateParts(date) {
+function createJstDateParts(year, month, day) {
   return {
-    year: date.getFullYear(),
-    month: date.getMonth() + 1,
-    day: date.getDate(),
-    monthStr: String(date.getMonth() + 1).padStart(2, "0"),
-    dayStr: String(date.getDate()).padStart(2, "0")
+    year,
+    month,
+    day,
+    monthStr: String(month).padStart(2, "0"),
+    dayStr: String(day).padStart(2, "0")
   };
 }
 
+function getJstPartsFromTimestamp(timestamp) {
+  const jstDate = new Date(timestamp + jstOffsetMs);
+  return createJstDateParts(
+    jstDate.getUTCFullYear(),
+    jstDate.getUTCMonth() + 1,
+    jstDate.getUTCDate()
+  );
+}
+
+function getCurrentJstParts() {
+  return getJstPartsFromTimestamp(Date.now());
+}
+
+function getJstMidnightTimestamp(year, month, day) {
+  return Date.UTC(year, month - 1, day) - jstOffsetMs;
+}
+
+function getToday(param) {
+  const nowParts = getCurrentJstParts();
+
+  if (!param) return nowParts;
+
+  if (param === "gestern") {
+    return getJstPartsFromTimestamp(
+      getJstMidnightTimestamp(nowParts.year, nowParts.month, nowParts.day) -
+      (24 * 60 * 60 * 1000)
+    );
+  }
+
+  if (param === "morgen") {
+    return getJstPartsFromTimestamp(
+      getJstMidnightTimestamp(nowParts.year, nowParts.month, nowParts.day) +
+      (24 * 60 * 60 * 1000)
+    );
+  }
+
+  if (/^\d{4}$/.test(param)) {
+    const month = parseInt(param.slice(0, 2), 10);
+    const day = parseInt(param.slice(2, 4), 10);
+    return createJstDateParts(nowParts.year, month, day);
+  }
+
+  return nowParts;
+}
+
+function formatSearchDateFromTimestamp(timestamp, time = "00:00:00") {
+  const parts = getJstPartsFromTimestamp(timestamp);
+  return `${parts.year}-${parts.monthStr}-${parts.dayStr}_${time}`;
+}
+
 function buildXSearchURL(year, monthStr, dayStr) {
-  const since = `${year}-${monthStr}-${dayStr}_00:00:00_JST`;
+  const baseTimestamp = getJstMidnightTimestamp(year, Number(monthStr), Number(dayStr));
+  const sinceTimestamp = baseTimestamp - (6 * 60 * 60 * 1000);
+
+  const since = `${formatSearchDateFromTimestamp(sinceTimestamp)}_JST`;
   const until = `${year}-${monthStr}-${dayStr}_23:59:59_JST`;
   const query = encodeURIComponent(
     `from:${twitterUser} since:${since} until:${until}`
   );
+
   return `https://x.com/search?q=${query}&src=typed_query&f=live`;
 }
 
 function buildFanartURL(year, month, day) {
-  const baseDate = new Date(year, month - 1, day);
-  baseDate.setDate(baseDate.getDate() - 6);
+  const baseTimestamp = getJstMidnightTimestamp(year, month, day);
+  const sinceTimestamp = baseTimestamp - (6 * 24 * 60 * 60 * 1000);
+  const sinceParts = getJstPartsFromTimestamp(sinceTimestamp);
 
-  const since = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, "0")}-${String(baseDate.getDate()).padStart(2, "0")}_00:00:00_JST`;
+  const since = `${sinceParts.year}-${sinceParts.monthStr}-${sinceParts.dayStr}_00:00:00_JST`;
   const until = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}_23:59:59_JST`;
-
   const query = encodeURIComponent(
     `url:twitter.com/${twitterUser} filter:media since:${since} until:${until}`
   );
@@ -63,11 +95,22 @@ function diffLabel(currentYear, year) {
   return diff === 0 ? "今年" : `${diff}年前`;
 }
 
+function getYearData(quotes, month, day, year) {
+  return quotes?.[String(month)]?.[String(day)]?.[String(year)] ?? null;
+}
+
 async function loadQuotes() {
-  const response = await fetch("adachi-db.json");
-  const data = await response.json();
-  console.log("JSON loaded:", data);
-  return data;
+  const response = await fetch(dbPath);
+  if (!response.ok) {
+    throw new Error(`Failed to load ${dbPath}: ${response.status}`);
+  }
+  return response.json();
+}
+
+function renderTweetEmbeds() {
+  if (window.twttr?.widgets) {
+    window.twttr.widgets.load();
+  }
 }
 
 function render(dateParts, quotes) {
@@ -79,24 +122,24 @@ function render(dateParts, quotes) {
   document.getElementById("fanartTitle").textContent =
     `${month}月${day}日から直近7日の語録ファンアート`;
 
+  document.getElementById("pickupTitle").textContent =
+    `📅 ${month}月${day}日の過去のポストPICKUP`;
+
   const quoteList = document.getElementById("quoteList");
   const fanartList = document.getElementById("fanartList");
+  const pickupList = document.getElementById("pickupList");
 
   quoteList.innerHTML = "";
   fanartList.innerHTML = "";
+  pickupList.innerHTML = "";
 
-  // ✅ 日付一致データを一度だけ検索（高速化）
-  const row = quotes.find(r =>
-    Number(r.month) === Number(month) &&
-    Number(r.day) === Number(day)
-  );
-
-  console.log("Matched row:", row);
+  let hasEmbed = false;
 
   for (let year = currentYear; year >= startYear; year--) {
-
     const label = diffLabel(currentYear, year);
-    const exampleText = row?.[year] ?? "";
+    const yearData = getYearData(quotes, month, day, year);
+    const exampleText = yearData?.text ?? "";
+    const postId = yearData?.id ?? null;
 
     const quoteURL = buildXSearchURL(year, monthStr, dayStr);
     const fanartURL = buildFanartURL(year, month, day);
@@ -110,11 +153,11 @@ function render(dateParts, quotes) {
     a.target = "_blank";
     a.rel = "noopener noreferrer";
     a.className = "stretched-link text-decoration-none fs-5";
-    a.innerHTML = `⚙️ ${year}年（${label}） →`;
+    a.textContent = `⚙️ ${year}年（${label}） →`;
 
     li.appendChild(a);
 
-    if (exampleText) {
+    if (exampleText !== "") {
       const ex = document.createElement("div");
       ex.className = "example-text";
       ex.textContent = `ex: ${exampleText}`;
@@ -132,18 +175,53 @@ function render(dateParts, quotes) {
     fanartA.target = "_blank";
     fanartA.rel = "noopener noreferrer";
     fanartA.className = "stretched-link text-decoration-none fs-5";
-    fanartA.innerHTML = `🖼️ ${year}年（${label}） →`;
+    fanartA.textContent = `🖼️ ${year}年（${label}） →`;
 
     fanartLi.appendChild(fanartA);
     fanartList.appendChild(fanartLi);
+
+    // ===== PICKUP =====
+    if (postId) {
+      hasEmbed = true;
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "tweet-card-wrapper";
+      wrapper.style.maxWidth = "550px";
+
+      const heading = document.createElement("div");
+      heading.className = "text-muted mb-2 fs-6 fw-bold";
+      heading.textContent = `📌 ${year}年（${label}）`;
+
+      const blockquote = document.createElement("blockquote");
+      blockquote.className = "twitter-tweet";
+      blockquote.dataset.width = "550";
+      blockquote.dataset.theme = "light";
+      blockquote.dataset.lang = "ja";
+
+      const tweetLink = document.createElement("a");
+      tweetLink.href = `https://twitter.com/${twitterUser}/status/${postId}`;
+
+      blockquote.appendChild(tweetLink);
+      wrapper.appendChild(heading);
+      wrapper.appendChild(blockquote);
+      pickupList.appendChild(wrapper);
+    }
   }
+
+  if (!hasEmbed) {
+    const empty = document.createElement("p");
+    empty.className = "text-muted";
+    empty.textContent = "この日の登録済みポストはありません。";
+    pickupList.appendChild(empty);
+  }
+
+  renderTweetEmbeds();
 }
 
 function setupShareButton() {
   const button = document.getElementById("shareButton");
 
   button.addEventListener("click", () => {
-
     const textToCopy =
 `◯年前の足立レイ語録 (´☋｀)
 ${location.href}`;
@@ -172,17 +250,22 @@ ${location.href}`;
   let baseDate;
 
   if (testParam && /^\d{8}$/.test(testParam)) {
-    const y = parseInt(testParam.slice(0, 4));
-    const m = parseInt(testParam.slice(4, 6)) - 1;
-    const d = parseInt(testParam.slice(6, 8));
-    baseDate = new Date(y, m, d);
+    const y = parseInt(testParam.slice(0, 4), 10);
+    const m = parseInt(testParam.slice(4, 6), 10);
+    const d = parseInt(testParam.slice(6, 8), 10);
+    baseDate = createJstDateParts(y, m, d);
   } else {
     baseDate = getToday(dateParam);
   }
 
-  const dateParts = formatDateParts(baseDate);
-  const quotes = await loadQuotes();
-
-  render(dateParts, quotes);
   setupShareButton();
+
+  try {
+    const quotes = await loadQuotes();
+    render(baseDate, quotes);
+  } catch (error) {
+    console.error(error);
+    document.getElementById("quoteList").innerHTML =
+      '<li class="list-group-item text-danger">語録データを読み込めませんでした。</li>';
+  }
 })();
