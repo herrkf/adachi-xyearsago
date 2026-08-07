@@ -1,6 +1,6 @@
 const startYear = 2020;
 const twitterUser = "adachirei0";
-const dbPath = ".data/adachi-db.json";
+const dbPath = "adachi-db.json";
 const jstOffsetMs = 9 * 60 * 60 * 1000;
 
 function createJstDateParts(year, month, day) {
