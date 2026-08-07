@@ -119,8 +119,10 @@ function render(dateParts, quotes) {
   document.getElementById("dateTitle").textContent =
     `📅${month}月${day}日`;
 
-  document.getElementById("fanartTitle").textContent =
-    `${month}月${day}日から直近7日の語録ファンアート`;
+  const fanartTitleEl = document.getElementById("fanartTitle");
+  if (fanartTitleEl) {
+    fanartTitleEl.textContent = `${month}月${day}日から直近7日の語録ファンアート`;
+  }
 
   document.getElementById("pickupTitle").textContent =
     `📅 ${month}月${day}日の過去のポストPICKUP`;
@@ -130,7 +132,7 @@ function render(dateParts, quotes) {
   const pickupList = document.getElementById("pickupList");
 
   quoteList.innerHTML = "";
-  fanartList.innerHTML = "";
+  if (fanartList) fanartList.innerHTML = "";
   pickupList.innerHTML = "";
 
   let hasEmbed = false;
@@ -167,18 +169,20 @@ function render(dateParts, quotes) {
     quoteList.appendChild(li);
 
     // ===== ファンアート =====
-    const fanartLi = document.createElement("li");
-    fanartLi.className = "list-group-item position-relative py-3";
+    if (fanartList) {
+      const fanartLi = document.createElement("li");
+      fanartLi.className = "list-group-item position-relative py-3";
 
-    const fanartA = document.createElement("a");
-    fanartA.href = fanartURL;
-    fanartA.target = "_blank";
-    fanartA.rel = "noopener noreferrer";
-    fanartA.className = "stretched-link text-decoration-none fs-5";
-    fanartA.textContent = `🖼️ ${year}年（${label}） →`;
+      const fanartA = document.createElement("a");
+      fanartA.href = fanartURL;
+      fanartA.target = "_blank";
+      fanartA.rel = "noopener noreferrer";
+      fanartA.className = "stretched-link text-decoration-none fs-5";
+      fanartA.textContent = `🖼️ ${year}年（${label}） →`;
 
-    fanartLi.appendChild(fanartA);
-    fanartList.appendChild(fanartLi);
+      fanartLi.appendChild(fanartA);
+      fanartList.appendChild(fanartLi);
+    }
 
     // ===== PICKUP =====
     if (postId) {
