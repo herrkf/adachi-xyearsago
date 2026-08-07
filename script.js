@@ -119,18 +119,24 @@ function render(dateParts, quotes) {
   document.getElementById("dateTitle").textContent =
     `📅${month}月${day}日`;
 
-  document.getElementById("fanartTitle").textContent =
-    `${month}月${day}日から直近7日の語録ファンアート`;
+  const fanartTitle = document.getElementById("fanartTitle");
+  const fanartList = document.getElementById("fanartList");
+  const showFanart = fanartTitle && fanartList;
+
+  if (showFanart) {
+    fanartTitle.textContent = `${month}月${day}日から直近7日の語録ファンアート`;
+  }
 
   document.getElementById("pickupTitle").textContent =
     `📅 ${month}月${day}日の過去のポストPICKUP`;
 
   const quoteList = document.getElementById("quoteList");
-  const fanartList = document.getElementById("fanartList");
   const pickupList = document.getElementById("pickupList");
 
   quoteList.innerHTML = "";
-  fanartList.innerHTML = "";
+  if (showFanart) {
+    fanartList.innerHTML = "";
+  }
   pickupList.innerHTML = "";
 
   let hasEmbed = false;
@@ -166,19 +172,20 @@ function render(dateParts, quotes) {
 
     quoteList.appendChild(li);
 
-    // ===== ファンアート =====
-    const fanartLi = document.createElement("li");
-    fanartLi.className = "list-group-item position-relative py-3";
+    if (showFanart) {
+      const fanartLi = document.createElement("li");
+      fanartLi.className = "list-group-item position-relative py-3";
 
-    const fanartA = document.createElement("a");
-    fanartA.href = fanartURL;
-    fanartA.target = "_blank";
-    fanartA.rel = "noopener noreferrer";
-    fanartA.className = "stretched-link text-decoration-none fs-5";
-    fanartA.textContent = `🖼️ ${year}年（${label}） →`;
+      const fanartA = document.createElement("a");
+      fanartA.href = fanartURL;
+      fanartA.target = "_blank";
+      fanartA.rel = "noopener noreferrer";
+      fanartA.className = "stretched-link text-decoration-none fs-5";
+      fanartA.textContent = `🖼️ ${year}年（${label}） →`;
 
-    fanartLi.appendChild(fanartA);
-    fanartList.appendChild(fanartLi);
+      fanartLi.appendChild(fanartA);
+      fanartList.appendChild(fanartLi);
+    }
 
     // ===== PICKUP =====
     if (postId) {
@@ -260,12 +267,22 @@ ${location.href}`;
 
   setupShareButton();
 
+  let quotes;
+
   try {
-    const quotes = await loadQuotes();
-    render(baseDate, quotes);
+    quotes = await loadQuotes();
   } catch (error) {
     console.error(error);
     document.getElementById("quoteList").innerHTML =
       '<li class="list-group-item text-danger">語録データを読み込めませんでした。</li>';
+    return;
+  }
+
+  try {
+    render(baseDate, quotes);
+  } catch (error) {
+    console.error(error);
+    document.getElementById("quoteList").innerHTML =
+      '<li class="list-group-item text-danger">ページを表示できませんでした。</li>';
   }
 })();
